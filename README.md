@@ -18,15 +18,18 @@ It classifies **intrusions, malware, phishing, and DDoS attacks** using AI.
    ```cmd
    git clone https://github.com/mahasweta99/cybersecurity-threat-ai.git
    cd cybersecurity-threat-ai
-   
+
+---
 2️⃣ **Install dependencies:**
      ```cmd
     pip install -r requirements.txt
+---
 
 3️⃣ **Run data preprocessing:**
 
     python src/preprocess.py
 
+---
 ##🔹 Data Preprocessing
   🔹 Loads security logs (data/security_logs.csv)
   🔹 Cleans missing data & formats timestamps
@@ -35,13 +38,17 @@ It classifies **intrusions, malware, phishing, and DDoS attacks** using AI.
     ```cmd
     python src/preprocess.py
 
+---
+
 ##🔹 Model Training
   🔹 Trains a Machine Learning model to classify security threats.
   🔹 Uses Random Forest, Deep Learning (TensorFlow), Anomaly Detection.
   🔹 Saves trained models to models/ directory.
+---
 
     ```cmd
     python src/train.py
+---
 
 ##🔹 Threat Prediction (Real-Time)
   🔹 Uses trained AI model to analyze new security logs.
