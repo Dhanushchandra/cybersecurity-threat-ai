@@ -89,8 +89,6 @@ Want to contribute? Open an **Issue** or submit a **Pull Request**!
 
 ---
 
-## 🔹 License (Optional)
-This project is open-source under the **MIT License**.
 
 
 
