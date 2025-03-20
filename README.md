@@ -15,11 +15,13 @@ It classifies **intrusions, malware, phishing, and DDoS attacks** using AI.
 ---
 
 ## 🔹 Installation & Setup
-1️⃣ **Clone the repository:**
+### 1️⃣ **Clone the repository:**
    ```cmd
    git clone https://github.com/mahasweta99/cybersecurity-threat-ai.git
    cd cybersecurity-threat-ai
-2️⃣ Install dependencies:
+
+---
+## 2️⃣ Install dependencies:
 
 cmd
 Copy code
