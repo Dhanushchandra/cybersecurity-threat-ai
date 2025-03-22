@@ -1,4 +1,6 @@
-venv/ 
-_pycache_/ 
-*.pyc 
-.DS_Store 
+venv/
+__pycache__/
+*.pyc
+*.pkl
+*.csv
+.DS_Store
