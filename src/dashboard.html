@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Threat Detection Dashboard</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 8px;
+        border: 1px solid #ccc;
+        text-align: center;
+      }
+      th {
+        background: #f5f5f5;
+      }
+      button {
+        padding: 5px 10px;
+        background-color: red;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>🛡️ Threat Detection Dashboard</h2>
+    <p>Live Logs:</p>
+    <table id="logTable">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Prediction</th>
+          <th>Confidence</th>
+          <th>User IP</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+    <script>
+      async function fetchLogs() {
+        try {
+          const res = await fetch("/logs");
+          const data = await res.json();
+
+          const table = document.querySelector("#logTable tbody");
+          table.innerHTML = "";
+
+          data.reverse().forEach((log) => {
+            const row = `<tr>
+              <td>${new Date(log.timestamp).toLocaleString("en-US", {
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+                hour: "numeric",
+                minute: "numeric",
+                second: "numeric",
+              })}</td>
+              <td>${log.prediction}</td>
+              <td>${(log.confidence * 100).toFixed(2)}%</td>
+              <td>${log.user_ip}</td>
+              <td><button onclick="blockUser('${
+                log.user_ip
+              }')">Block</button></td>
+            </tr>`;
+            table.innerHTML += row;
+          });
+        } catch (err) {
+          console.error("Error fetching logs:", err);
+        }
+      }
+
+      async function blockUser(ip) {
+        try {
+          const res = await fetch(`/block_user/${ip}`, { method: "POST" });
+          if (res.ok) {
+            alert(`Blocked IP: ${ip}`);
+          } else {
+            alert("Failed to block IP");
+          }
+        } catch (err) {
+          console.error("Error blocking user:", err);
+        }
+      }
+
+      // Fetch logs every 3 seconds
+      setInterval(fetchLogs, 3000);
+      fetchLogs(); // initial load
+    </script>
+  </body>
+</html>
