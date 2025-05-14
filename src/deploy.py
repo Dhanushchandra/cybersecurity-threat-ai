@@ -35,7 +35,7 @@ def log_prediction(input_data, prediction, confidence, user_ip):
 def predict():
     try:
         # Get the IP address of the user
-        user_ip = request.remote_addr  # Get client IP address
+        user_ip = request.json.get("source_ip")
 
         # Get input JSON data from the POST request
         input_data = request.get_json()
@@ -96,6 +96,6 @@ def dashboard():
 
 # Run the Flask app
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000,debug=True)
 
  

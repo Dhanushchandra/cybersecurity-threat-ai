@@ -1,7 +1,8 @@
 from scapy.all import sniff, IP, TCP, Raw
 import requests
 
-API_URL = "http://localhost:5000/predict"
+# API_URL = "http://localhost:5000/predict"
+API_URL = "http://192.168.31.50:5000/predict"
 
 def is_http_get_root(packet):
     if packet.haslayer(Raw):
@@ -60,6 +61,8 @@ def packet_callback(packet):
         if is_http_get_root(packet):
             features = extract_features(packet)
             try:
+                src_ip = packet[IP].src
+                features["source_ip"] = src_ip
                 response = requests.post(API_URL, json=features)
                 result = response.json()
                 print(f"⚠️ Threat Detected: {result['prediction']} | Confidence: {result['confidence']}")
@@ -68,6 +71,8 @@ def packet_callback(packet):
 
 # Only sniff traffic on port 5000 (Flask default)
 print("🚨 Monitoring HTTP GET / on port 5000...")
-sniff(filter="tcp port 5000", iface="\\Device\\NPF_Loopback", prn=packet_callback, store=0)
+# sniff(filter="tcp port 5000", iface="\\Device\\NPF_Loopback", prn=packet_callback, store=0)
+sniff(filter="tcp port 5000", iface="\\Device\\NPF_{26EA21C1-F13C-4F6D-AC1D-E79F82D3C718}", prn=packet_callback, store=0)
+
 
 
