@@ -34,11 +34,15 @@ def log_prediction(input_data, prediction, confidence, user_ip):
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
+
+        input_data = request.get_json()
         # Get the IP address of the user
-        user_ip = request.json.get("source_ip")
+        # user_ip = request.json.get("source_ip")
+        user_ip = input_data.pop("source_ip", None)
+
+        print("📦 Received JSON:", input_data)
 
         # Get input JSON data from the POST request
-        input_data = request.get_json()
 
         # Convert to DataFrame
         input_df = pd.DataFrame([input_data]) if isinstance(input_data, dict) else pd.DataFrame(input_data)
