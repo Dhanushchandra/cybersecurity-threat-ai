@@ -16,11 +16,20 @@ FEATURE_COLUMNS = list(model.feature_names_in_)
 LOG_PATH = "logs/predictions.jsonl"
 BLOCKED_IPS = set()
 
+# Define label map
+LABEL_MAP = {
+    0: 'Normal',
+    1: 'DoS Attack',
+    2: 'Probing Attack',
+    3: 'Remote-to-Local (R2L)',
+    4: 'User-to-Root (U2R)'
+}
+
 def log_prediction(input_data, prediction, confidence, user_ip):
     log_entry = {
         "timestamp": datetime.now().isoformat(),
         "input": input_data,
-        "prediction": int(prediction[0]),
+        "prediction": prediction[0],
         "confidence": float(confidence[0]),
         "user_ip": user_ip
     }
@@ -55,12 +64,16 @@ def predict():
         prediction = model.predict(input_df)
         confidence = model.predict_proba(input_df).max(axis=1)
 
+        prediction_labels = [LABEL_MAP.get(p, "Unknown") for p in prediction]
+
+        print(prediction_labels)
+
         # Log prediction with the IP address
-        log_prediction(input_data, prediction, confidence, user_ip)
+        log_prediction(input_data,  prediction_labels, confidence, user_ip)
 
         # Return both prediction and confidence
         return jsonify({
-            "prediction": prediction.tolist(),
+            "prediction": prediction_labels,
             "confidence": confidence.tolist()
         })
 
