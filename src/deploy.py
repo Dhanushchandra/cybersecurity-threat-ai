@@ -4,8 +4,19 @@ import pandas as pd
 import json
 from datetime import datetime
 from flask import send_file
+from flask import Flask, request, redirect, session, send_file, render_template, url_for
+from datetime import timedelta
+from flask_cors import CORS
 
 app = Flask(__name__)
+app.secret_key = "avalakibathu"
+
+CORS(app) 
+
+ADMIN_USERNAME = "admin"
+ADMIN_PASSWORD = "admin"
+
+app.permanent_session_lifetime = timedelta(minutes=2)
 
 # Load the trained model
 model = joblib.load("models/threat_detector_rf.pkl")
@@ -80,12 +91,34 @@ def predict():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
     
+# @app.route("/logs", methods=["GET"])
+# def get_logs():
+#     try:
+#         with open(LOG_PATH, "r") as f:
+#             logs = [json.loads(line) for line in f.readlines()]
+#         return jsonify(logs[-100:])  # return last 100 logs
+#     except Exception as e:
+#         return jsonify({"error": str(e)}), 500
+
 @app.route("/logs", methods=["GET"])
 def get_logs():
     try:
         with open(LOG_PATH, "r") as f:
-            logs = [json.loads(line) for line in f.readlines()]
-        return jsonify(logs[-100:])  # return last 100 logs
+            logs = []
+            for line in f:
+                log = json.loads(line)
+                # Ensure timestamp is ISO format without microseconds
+                if "timestamp" in log:
+                    try:
+                        dt = datetime.fromisoformat(log["timestamp"])
+                        log["timestamp"] = dt.replace(microsecond=0).isoformat()
+                    except Exception:
+                        pass
+                logs.append(log)
+
+        # Sort by timestamp (oldest → newest)
+        logs = sorted(logs, key=lambda x: x["timestamp"])
+        return jsonify(logs[-100:])  # Return last 100 logs
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     
@@ -96,6 +129,18 @@ def block_user(ip):
         return jsonify({"message": f"IP {ip} is now blocked."}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route("/unblock_user/<ip>", methods=["POST"])
+def unblock_user(ip):
+    try:
+        BLOCKED_IPS.discard(ip)
+        return jsonify({"message": f"IP {ip} is now unblocked."}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+@app.route("/blocked_ips")
+def get_blocked_ips():
+    return jsonify(list(BLOCKED_IPS))
 
 @app.route("/", methods=["GET"])
 def home():
@@ -105,10 +150,40 @@ def home():
 
     return send_file("index.html")
 
+@app.route("/admin")
+def admin():
+    return redirect("/login")
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+
+        if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
+            session.permanent = True
+            session["logged_in"] = True
+            return redirect("/dashboard")
+        else:
+            return "Invalid credentials", 401
+
+    return send_file("login.html")
+
 @app.route("/dashboard", methods=["GET"])
 def dashboard():
-    # Admin dashboard to view and block IPs
-    return  send_file("dashboard.html")
+    if not session.get("logged_in"):
+        return redirect("/login")
+    return send_file("dashboard.html")
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect("/login")
+
+# @app.route("/dashboard", methods=["GET"])
+# def dashboard():
+#     # Admin dashboard to view and block IPs
+#     return  send_file("dashboard.html")
 
 
 # Run the Flask app

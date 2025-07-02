@@ -27,6 +27,15 @@
         border: none;
         cursor: pointer;
       }
+      .blocked-row {
+        background-color: #ffcccc;
+      }
+      .unblocked-row {
+        background-color: #ccffcc;
+      }
+      button.unblock {
+        background-color: green;
+      }
     </style>
   </head>
   <body>
@@ -46,8 +55,21 @@
     </table>
 
     <script>
+      let blockedIPs = [];
+
+      async function fetchBlockedIPs() {
+        try {
+          const res = await fetch("/blocked_ips");
+          blockedIPs = await res.json();
+        } catch (err) {
+          console.error("Error fetching blocked IPs:", err);
+        }
+      }
+
       async function fetchLogs() {
         try {
+          await fetchBlockedIPs(); // update blockedIPs first
+
           const res = await fetch("/logs");
           const data = await res.json();
 
@@ -55,22 +77,28 @@
           table.innerHTML = "";
 
           data.reverse().forEach((log) => {
-            const row = `<tr>
-              <td>${new Date(log.timestamp).toLocaleString("en-US", {
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-                hour: "numeric",
-                minute: "numeric",
-                second: "numeric",
-              })}</td>
-              <td>${log.prediction}</td>
-              <td>${(log.confidence * 100).toFixed(2)}%</td>
-              <td>${log.user_ip}</td>
-              <td><button onclick="blockUser('${
-                log.user_ip
-              }')">Block</button></td>
-            </tr>`;
+            const isBlocked = blockedIPs.includes(log.user_ip);
+            const rowClass = isBlocked ? "blocked-row" : "unblocked-row";
+            const buttonLabel = isBlocked ? "Unblock" : "Block";
+            const buttonClass = isBlocked ? "unblock" : "";
+            const actionFunc = isBlocked ? "unblockUser" : "blockUser";
+
+            const row = `<tr class="${rowClass}">
+          <td>${new Date(log.timestamp).toLocaleString("en-US", {
+            year: "numeric",
+            month: "long",
+            day: "numeric",
+            hour: "numeric",
+            minute: "numeric",
+            second: "numeric",
+          })}</td>
+          <td>${log.prediction}</td>
+          <td>${(log.confidence * 100).toFixed(2)}%</td>
+          <td>${log.user_ip}</td>
+          <td><button class="${buttonClass}" onclick="${actionFunc}('${
+              log.user_ip
+            }')">${buttonLabel}</button></td>
+        </tr>`;
             table.innerHTML += row;
           });
         } catch (err) {
@@ -83,6 +111,7 @@
           const res = await fetch(`/block_user/${ip}`, { method: "POST" });
           if (res.ok) {
             alert(`Blocked IP: ${ip}`);
+            fetchLogs();
           } else {
             alert("Failed to block IP");
           }
@@ -91,9 +120,22 @@
         }
       }
 
-      // Fetch logs every 3 seconds
+      async function unblockUser(ip) {
+        try {
+          const res = await fetch(`/unblock_user/${ip}`, { method: "POST" });
+          if (res.ok) {
+            alert(`Unblocked IP: ${ip}`);
+            fetchLogs();
+          } else {
+            alert("Failed to unblock IP");
+          }
+        } catch (err) {
+          console.error("Error unblocking user:", err);
+        }
+      }
+
       setInterval(fetchLogs, 3000);
-      fetchLogs(); // initial load
+      fetchLogs();
     </script>
   </body>
 </html>
