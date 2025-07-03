@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Enhanced Multi‑Metric Log Dashboard</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 20px;
+      }
+      .chart-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 30px;
+      }
+      .chart {
+        border: 1px solid #ccc;
+        padding: 10px;
+      }
+      .title {
+        text-align: center;
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        border: 1px solid #aaa;
+        padding: 5px;
+      }
+      th {
+        background: #eee;
+      }
+      .Normal {
+        background: #e0f7e9;
+      }
+      .Anomaly {
+        background: #fde0dc;
+      }
+      .legend {
+        font-size: 12px;
+      }
+      .legend rect {
+        stroke-width: 1;
+        stroke: #555;
+      }
+      .control-group {
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Interactive Multi‑Metric Log Dashboard</h1>
+
+    <div class="control-group">
+      <label
+        ><input type="checkbox" checked data-metric="confidence" />
+        Confidence</label
+      >
+      <label
+        ><input type="checkbox" checked data-metric="src_bytes" />
+        src_bytes</label
+      >
+      <label
+        ><input type="checkbox" checked data-metric="dst_bytes" />
+        dst_bytes</label
+      >
+      <label
+        ><input type="checkbox" checked data-metric="num_failed_logins" />
+        Failed Logins</label
+      >
+      <label
+        ><input type="checkbox" checked data-metric="num_file_creations" /> File
+        Creations</label
+      >
+      <label
+        ><input type="checkbox" checked data-metric="num_shells" />
+        Shells</label
+      >
+      <label
+        ><input type="checkbox" checked data-metric="duration" />
+        Duration</label
+      >
+    </div>
+
+    <div class="chart-grid">
+      <div id="lineChart" class="chart">
+        <div class="title">Multi‑Metric Time Series</div>
+      </div>
+      <div id="barChart" class="chart">
+        <div class="title">Grouped IP Metrics</div>
+      </div>
+    </div>
+    <div id="histChart" class="chart">
+      <div class="title">Duration Distribution</div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>IP</th>
+          <th>Prediction</th>
+          <th>Confidence</th>
+          <th>src_bytes</th>
+          <th>dst_bytes</th>
+          <th>fail_log</th>
+          <th>file_cre</th>
+          <th>shells</th>
+          <th>Duration</th>
+        </tr>
+      </thead>
+      <tbody id="logTable"></tbody>
+    </table>
+
+    <script>
+      const metrics = {
+        line: ["confidence", "src_bytes", "dst_bytes"],
+        bar: ["num_failed_logins", "num_file_creations", "num_shells"],
+        hist: ["duration"],
+      };
+
+      let rawData = [];
+
+      async function fetchData() {
+        const res = await fetch("http://localhost:5000/logs");
+        rawData = await res.json();
+        rawData.forEach((d) => {
+          d.t = new Date(d.timestamp);
+        });
+        updateAll();
+      }
+
+      function updateAll() {
+        const selected = {};
+        document.querySelectorAll("input[data-metric]").forEach((cb) => {
+          selected[cb.dataset.metric] = cb.checked;
+        });
+        renderTable();
+        renderLine(
+          Object.keys(selected).filter(
+            (m) => metrics.line.includes(m) && selected[m]
+          ),
+          selected
+        );
+        renderBar(
+          Object.keys(selected).filter(
+            (m) => metrics.bar.includes(m) && selected[m]
+          )
+        );
+        renderHist(selected["duration"]);
+      }
+
+      function renderTable() {
+        const tbody = d3.select("#logTable").html("");
+        rawData.forEach((d) => {
+          tbody.append("tr").attr("class", d.prediction).html(`
+            <td>${d.t.toLocaleString()}</td>
+            <td>${d.user_ip}</td>
+            <td>${d.prediction}</td>
+            <td>${(d.confidence * 100).toFixed(1)}%</td>
+            <td>${d.input.src_bytes}</td>
+            <td>${d.input.dst_bytes}</td>
+            <td>${d.input.num_failed_logins}</td>
+            <td>${d.input.num_file_creations}</td>
+            <td>${d.input.num_shells}</td>
+            <td>${d.input.duration}</td>
+          `);
+        });
+      }
+
+      function renderLine(chosenMetrics, sel) {
+        const el = d3.select("#lineChart"),
+          w = 400,
+          h = 250,
+          m = { l: 40, r: 60, t: 20, b: 40 };
+        el.selectAll("svg").remove();
+        if (!chosenMetrics.length) return;
+        const svg = el
+          .append("svg")
+          .attr("width", w + m.l + m.r)
+          .attr("height", h + m.t + m.b)
+          .append("g")
+          .attr("transform", `translate(${m.l},${m.t})`);
+        const x = d3
+          .scaleTime()
+          .domain(d3.extent(rawData, (d) => d.t))
+          .range([0, w]);
+        svg
+          .append("g")
+          .attr("transform", `translate(0,${h})`)
+          .call(d3.axisBottom(x));
+        const color = d3
+          .scaleOrdinal()
+          .domain(chosenMetrics)
+          .range(d3.schemeCategory10);
+        let yScales = {};
+        chosenMetrics.forEach((mtr, i) => {
+          const vals = rawData.map((d) =>
+            mtr === "confidence" ? d[mtr] : d.input[mtr]
+          );
+          yScales[mtr] = d3
+            .scaleLinear()
+            .domain(d3.extent(vals))
+            .nice()
+            .range([h, 0]);
+          const axis =
+            mtr === "confidence"
+              ? d3.axisLeft(yScales[mtr]).tickFormat(d3.format(".0%"))
+              : d3.axisRight(yScales[mtr]);
+          svg
+            .append("g")
+            .attr("transform", mtr === "confidence" ? "" : `translate(${w},0)`)
+            .call(axis);
+        });
+
+        // lines
+        chosenMetrics.forEach((mtr) => {
+          const line = d3
+            .line()
+            .x((d) => x(d.t))
+            .y((d) =>
+              mtr === "confidence"
+                ? yScales[mtr](d[mtr])
+                : yScales[mtr](d.input[mtr])
+            );
+          svg
+            .append("path")
+            .datum(rawData)
+            .attr("fill", "none")
+            .attr("stroke", color(mtr))
+            .attr("stroke-width", 2)
+            .attr("d", line);
+        });
+
+        // legend
+        const legend = svg
+          .append("g")
+          .attr("class", "legend")
+          .attr("transform", `translate(${w - 100},0)`);
+        chosenMetrics.forEach((mtr, i) => {
+          const y0 = i * 20;
+          legend
+            .append("rect")
+            .attr("x", 0)
+            .attr("y", y0)
+            .attr("width", 12)
+            .attr("height", 12)
+            .attr("fill", color(mtr));
+          legend
+            .append("text")
+            .attr("x", 18)
+            .attr("y", y0 + 10)
+            .text(mtr);
+        });
+      }
+
+      function renderBar(chosen, sel) {
+        const el = d3.select("#barChart"),
+          w = 400,
+          h = 250,
+          m = { l: 40, r: 20, t: 20, b: 60 };
+        el.selectAll("svg").remove();
+        if (!chosen.length) return;
+        const svg = el
+          .append("svg")
+          .attr("width", w + m.l + m.r)
+          .attr("height", h + m.t + m.b)
+          .append("g")
+          .attr("transform", `translate(${m.l},${m.t})`);
+        const ips = [...new Set(rawData.map((d) => d.user_ip))];
+        const x0 = d3.scaleBand().domain(ips).range([0, w]).padding(0.2);
+        const x1 = d3
+          .scaleBand()
+          .domain(chosen)
+          .range([0, x0.bandwidth()])
+          .padding(0.05);
+        const maxv = d3.max(rawData, (d) => d3.max(chosen, (m) => d.input[m]));
+        const y = d3.scaleLinear().domain([0, maxv]).nice().range([h, 0]);
+        svg
+          .append("g")
+          .attr("transform", `translate(0,${h})`)
+          .call(d3.axisBottom(x0));
+        svg.append("g").call(d3.axisLeft(y));
+
+        const groups = svg
+          .selectAll("g.layer")
+          .data(ips)
+          .join("g")
+          .attr("transform", (d) => `translate(${x0(d)},0)`);
+        groups
+          .selectAll("rect")
+          .data((ip) =>
+            chosen.map((m) => ({
+              ip,
+              m,
+              v: d3.mean(
+                rawData.filter((d) => d.user_ip === ip),
+                (d) => d.input[m]
+              ),
+            }))
+          )
+          .join("rect")
+          .attr("x", (d) => x1(d.m))
+          .attr("y", (d) => y(d.v))
+          .attr("width", x1.bandwidth())
+          .attr("height", (d) => h - y(d.v))
+          .attr("fill", (d) => d3.schemeCategory10[chosen.indexOf(d.m)]);
+      }
+
+      function renderHist(enabled) {
+        const el = d3.select("#histChart"),
+          w = 820,
+          h = 200,
+          m = { l: 40, r: 20, t: 20, b: 40 };
+        el.selectAll("svg").remove();
+        if (!enabled) return;
+        const svg = el
+          .append("svg")
+          .attr("width", w + m.l + m.r)
+          .attr("height", h + m.t + m.b)
+          .append("g")
+          .attr("transform", `translate(${m.l},${m.t})`);
+        const values = rawData.map((d) => d.input.duration);
+        const x = d3
+          .scaleLinear()
+          .domain(d3.extent(values))
+          .nice()
+          .range([0, w]);
+        const bins = d3.bin().domain(x.domain()).thresholds(10)(values);
+        const y = d3
+          .scaleLinear()
+          .domain([0, d3.max(bins, (d) => d.length)])
+          .nice()
+          .range([h, 0]);
+        svg
+          .append("g")
+          .attr("transform", `translate(0,${h})`)
+          .call(d3.axisBottom(x));
+        svg.append("g").call(d3.axisLeft(y));
+        svg
+          .selectAll("rect")
+          .data(bins)
+          .join("rect")
+          .attr("x", (d) => x(d.x0) + 1)
+          .attr("y", (d) => y(d.length))
+          .attr("width", (d) => Math.max(0, x(d.x1) - x(d.x0) - 1))
+          .attr("height", (d) => h - y(d.length))
+          .attr("fill", "purple");
+      }
+
+      document.querySelectorAll("input[data-metric]").forEach((cb) => {
+        cb.addEventListener("change", updateAll);
+      });
+
+      fetchData();
+      setInterval(fetchData, 5000);
+    </script>
+  </body>
+</html>

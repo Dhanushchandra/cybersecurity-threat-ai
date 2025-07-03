@@ -163,17 +163,23 @@ def login():
         if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
             session.permanent = True
             session["logged_in"] = True
-            return redirect("/dashboard")
+            return redirect("/monitor")
         else:
             return "Invalid credentials", 401
 
     return send_file("login.html")
 
+@app.route("/monitor", methods=["GET"])
+def monitor():
+    if not session.get("logged_in"):
+        return redirect("/login")
+    return send_file("dashboard.html")
+
 @app.route("/dashboard", methods=["GET"])
 def dashboard():
     if not session.get("logged_in"):
         return redirect("/login")
-    return send_file("dashboard.html")
+    return send_file("action.html")
 
 @app.route("/logout")
 def logout():

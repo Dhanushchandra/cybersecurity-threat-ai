@@ -1,141 +1,704 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
-    <title>Threat Detection Dashboard</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Network Intrusion Detection Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
       body {
-        font-family: Arial, sans-serif;
-        margin: 20px;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        color: #333;
       }
-      table {
-        width: 100%;
-        border-collapse: collapse;
+
+      .header {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        padding: 2rem;
+        text-align: center;
+        box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
       }
-      th,
-      td {
-        padding: 8px;
-        border: 1px solid #ccc;
+
+      .header h1 {
+        color: #2c3e50;
+        font-size: 2.5rem;
+        margin-bottom: 0.5rem;
+        font-weight: 700;
+      }
+
+      .header p {
+        color: #7f8c8d;
+        font-size: 1.1rem;
+      }
+
+      .status-bar {
+        background: rgba(255, 255, 255, 0.9);
+        padding: 1rem 2rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      }
+
+      .status-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .status-indicator {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #27ae60;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+
+      .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(600px, 1fr));
+        gap: 2rem;
+        margin-top: 2rem;
+      }
+
+      .chart-card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 20px;
+        padding: 2rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+      }
+
+      .chart-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+      }
+
+      .chart-title {
+        color: #2c3e50;
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        text-align: center;
+        border-bottom: 2px solid #3498db;
+        padding-bottom: 0.5rem;
+      }
+
+      .chart-container {
+        position: relative;
+        height: 400px;
+        margin-bottom: 1rem;
+      }
+
+      .chart-info {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 10px;
+        font-size: 0.9rem;
+        color: #6c757d;
         text-align: center;
       }
-      th {
-        background: #f5f5f5;
+
+      .loading {
+        text-align: center;
+        padding: 2rem;
+        color: #7f8c8d;
+        font-size: 1.1rem;
       }
-      button {
-        padding: 5px 10px;
-        background-color: red;
+
+      .error {
+        background: #fee;
+        color: #c33;
+        padding: 1rem;
+        border-radius: 10px;
+        text-align: center;
+        margin: 1rem 0;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+
+      .stat-card {
+        background: rgba(255, 255, 255, 0.9);
+        padding: 1.5rem;
+        border-radius: 15px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+      }
+
+      .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #2c3e50;
+        margin-bottom: 0.5rem;
+      }
+
+      .stat-label {
+        color: #7f8c8d;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .refresh-btn {
+        background: linear-gradient(45deg, #3498db, #2980b9);
         color: white;
         border: none;
+        padding: 0.8rem 2rem;
+        border-radius: 25px;
+        font-size: 1rem;
         cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
       }
-      .blocked-row {
-        background-color: #ffcccc;
+
+      .refresh-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
       }
-      .unblocked-row {
-        background-color: #ccffcc;
+
+      .critical-alert {
+        background: linear-gradient(45deg, #e74c3c, #c0392b);
+        color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        text-align: center;
+        font-weight: 600;
+        margin-bottom: 1rem;
+        animation: alertBlink 2s infinite;
       }
-      button.unblock {
-        background-color: green;
+
+      @keyframes alertBlink {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.8;
+        }
       }
     </style>
   </head>
   <body>
-    <h2>🛡️ Threat Detection Dashboard</h2>
-    <p>Live Logs:</p>
-    <table id="logTable">
-      <thead>
-        <tr>
-          <th>Timestamp</th>
-          <th>Prediction</th>
-          <th>Confidence</th>
-          <th>User IP</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+    <div class="header">
+      <h1>🛡️ Network Intrusion Detection Dashboard</h1>
+      <p>Real-time Security Monitoring & Analysis</p>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-item">
+        <div class="status-indicator"></div>
+        <span>System Active</span>
+      </div>
+      <div class="status-item">
+        <span id="lastUpdate">Last Updated: --</span>
+      </div>
+      <button class="refresh-btn" onclick="loadData()">🔄 Refresh Data</button>
+    </div>
+
+    <div class="container">
+      <div id="alertContainer"></div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-value" id="totalLogs">--</div>
+          <div class="stat-label">Total Logs</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="normalCount">--</div>
+          <div class="stat-label">Normal Traffic</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="threatCount">--</div>
+          <div class="stat-label">Threats Detected</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value" id="avgConfidence">--</div>
+          <div class="stat-label">Avg Confidence</div>
+        </div>
+      </div>
+
+      <div class="dashboard-grid">
+        <!-- Time-based Analysis Charts -->
+        <div class="chart-card">
+          <h3 class="chart-title">📊 Timeline of Predictions</h3>
+          <div class="chart-container">
+            <canvas id="timelineChart"></canvas>
+          </div>
+          <div class="chart-info">
+            Shows security predictions over time to identify attack patterns
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3 class="chart-title">📈 Confidence Score Trends</h3>
+          <div class="chart-container">
+            <canvas id="confidenceChart"></canvas>
+          </div>
+          <div class="chart-info">
+            Model confidence levels over time - higher values indicate more
+            certain predictions
+          </div>
+        </div>
+
+        <!-- Attack Detection Charts -->
+        <div class="chart-card">
+          <h3 class="chart-title">🥧 Prediction Distribution</h3>
+          <div class="chart-container">
+            <canvas id="predictionPieChart"></canvas>
+          </div>
+          <div class="chart-info">
+            Distribution of normal vs malicious traffic classifications
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3 class="chart-title">📊 Confidence Level Distribution</h3>
+          <div class="chart-container">
+            <canvas id="confidenceHistogram"></canvas>
+          </div>
+          <div class="chart-info">
+            Distribution of model confidence scores across all predictions
+          </div>
+        </div>
+
+        <!-- Network Traffic Analysis -->
+        <div class="chart-card">
+          <h3 class="chart-title">📡 Source Bytes Analysis</h3>
+          <div class="chart-container">
+            <canvas id="sourceBytesChart"></canvas>
+          </div>
+          <div class="chart-info">
+            Network traffic volume analysis - variations may indicate different
+            attack types
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h3 class="chart-title">🌐 IP Address Activity</h3>
+          <div class="chart-container">
+            <canvas id="ipActivityChart"></canvas>
+          </div>
+          <div class="chart-info">
+            Activity levels by IP address - helps identify compromised or
+            suspicious hosts
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script>
-      let blockedIPs = [];
+      let chartInstances = {};
 
-      async function fetchBlockedIPs() {
+      async function loadData() {
         try {
-          const res = await fetch("/blocked_ips");
-          blockedIPs = await res.json();
-        } catch (err) {
-          console.error("Error fetching blocked IPs:", err);
+          document.getElementById("lastUpdate").textContent = "Loading...";
+
+          const response = await fetch("http://localhost:5000/logs");
+          if (!response.ok) throw new Error("Failed to fetch data");
+
+          const data = await response.json();
+          updateDashboard(data);
+
+          document.getElementById(
+            "lastUpdate"
+          ).textContent = `Last Updated: ${new Date().toLocaleString()}`;
+        } catch (error) {
+          console.error("Error loading data:", error);
+          showError(
+            "Failed to load data. Please check if the server is running on localhost:5000"
+          );
         }
       }
 
-      async function fetchLogs() {
-        try {
-          await fetchBlockedIPs(); // update blockedIPs first
-
-          const res = await fetch("/logs");
-          const data = await res.json();
-
-          const table = document.querySelector("#logTable tbody");
-          table.innerHTML = "";
-
-          data.reverse().forEach((log) => {
-            const isBlocked = blockedIPs.includes(log.user_ip);
-            const rowClass = isBlocked ? "blocked-row" : "unblocked-row";
-            const buttonLabel = isBlocked ? "Unblock" : "Block";
-            const buttonClass = isBlocked ? "unblock" : "";
-            const actionFunc = isBlocked ? "unblockUser" : "blockUser";
-
-            const row = `<tr class="${rowClass}">
-          <td>${new Date(log.timestamp).toLocaleString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "numeric",
-            minute: "numeric",
-            second: "numeric",
-          })}</td>
-          <td>${log.prediction}</td>
-          <td>${(log.confidence * 100).toFixed(2)}%</td>
-          <td>${log.user_ip}</td>
-          <td><button class="${buttonClass}" onclick="${actionFunc}('${
-              log.user_ip
-            }')">${buttonLabel}</button></td>
-        </tr>`;
-            table.innerHTML += row;
-          });
-        } catch (err) {
-          console.error("Error fetching logs:", err);
-        }
+      function updateDashboard(data) {
+        updateStats(data);
+        checkForThreats(data);
+        createTimelineChart(data);
+        createConfidenceChart(data);
+        createPredictionPieChart(data);
+        createConfidenceHistogram(data);
+        createSourceBytesChart(data);
+        createIPActivityChart(data);
       }
 
-      async function blockUser(ip) {
-        try {
-          const res = await fetch(`/block_user/${ip}`, { method: "POST" });
-          if (res.ok) {
-            alert(`Blocked IP: ${ip}`);
-            fetchLogs();
-          } else {
-            alert("Failed to block IP");
+      function updateStats(data) {
+        const totalLogs = data.length;
+        const normalCount = data.filter(
+          (d) => d.prediction === "Normal"
+        ).length;
+        const threatCount = data.filter(
+          (d) => d.prediction !== "Normal"
+        ).length;
+        const avgConfidence = (
+          data.reduce((sum, d) => sum + d.confidence, 0) / data.length
+        ).toFixed(2);
+
+        document.getElementById("totalLogs").textContent = totalLogs;
+        document.getElementById("normalCount").textContent = normalCount;
+        document.getElementById("threatCount").textContent = threatCount;
+        document.getElementById("avgConfidence").textContent = avgConfidence;
+      }
+
+      function checkForThreats(data) {
+        const threats = data.filter((d) => d.prediction !== "Normal");
+        const alertContainer = document.getElementById("alertContainer");
+
+        if (threats.length > 0) {
+          alertContainer.innerHTML = `
+                    <div class="critical-alert">
+                        🚨 SECURITY ALERT: ${
+                          threats.length
+                        } threat(s) detected! Latest: ${
+            threats[threats.length - 1].prediction
           }
-        } catch (err) {
-          console.error("Error blocking user:", err);
+                    </div>
+                `;
+        } else {
+          alertContainer.innerHTML = "";
         }
       }
 
-      async function unblockUser(ip) {
-        try {
-          const res = await fetch(`/unblock_user/${ip}`, { method: "POST" });
-          if (res.ok) {
-            alert(`Unblocked IP: ${ip}`);
-            fetchLogs();
-          } else {
-            alert("Failed to unblock IP");
+      function createTimelineChart(data) {
+        const ctx = document.getElementById("timelineChart").getContext("2d");
+
+        if (chartInstances.timeline) {
+          chartInstances.timeline.destroy();
+        }
+
+        const sortedData = data.sort(
+          (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+        );
+
+        chartInstances.timeline = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: sortedData.map((d) =>
+              new Date(d.timestamp).toLocaleTimeString()
+            ),
+            datasets: [
+              {
+                label: "Predictions",
+                data: sortedData.map((d) =>
+                  d.prediction === "Normal" ? 0 : 1
+                ),
+                borderColor: "#e74c3c",
+                backgroundColor: "rgba(231, 76, 60, 0.1)",
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                max: 1,
+                ticks: {
+                  callback: function (value) {
+                    return value === 0 ? "Normal" : "Threat";
+                  },
+                },
+              },
+            },
+            plugins: {
+              legend: {
+                display: true,
+                position: "top",
+              },
+            },
+          },
+        });
+      }
+
+      function createConfidenceChart(data) {
+        const ctx = document.getElementById("confidenceChart").getContext("2d");
+
+        if (chartInstances.confidence) {
+          chartInstances.confidence.destroy();
+        }
+
+        const sortedData = data.sort(
+          (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+        );
+
+        chartInstances.confidence = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: sortedData.map((d) =>
+              new Date(d.timestamp).toLocaleTimeString()
+            ),
+            datasets: [
+              {
+                label: "Confidence Score",
+                data: sortedData.map((d) => d.confidence),
+                borderColor: "#3498db",
+                backgroundColor: "rgba(52, 152, 219, 0.1)",
+                borderWidth: 3,
+                fill: true,
+                tension: 0.4,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+                max: 1,
+              },
+            },
+            plugins: {
+              legend: {
+                display: true,
+                position: "top",
+              },
+            },
+          },
+        });
+      }
+
+      function createPredictionPieChart(data) {
+        const ctx = document
+          .getElementById("predictionPieChart")
+          .getContext("2d");
+
+        if (chartInstances.predictionPie) {
+          chartInstances.predictionPie.destroy();
+        }
+
+        const predictionCounts = {};
+        data.forEach((d) => {
+          predictionCounts[d.prediction] =
+            (predictionCounts[d.prediction] || 0) + 1;
+        });
+
+        chartInstances.predictionPie = new Chart(ctx, {
+          type: "doughnut",
+          data: {
+            labels: Object.keys(predictionCounts),
+            datasets: [
+              {
+                data: Object.values(predictionCounts),
+                backgroundColor: ["#27ae60", "#e74c3c", "#f39c12", "#9b59b6"],
+                borderWidth: 3,
+                borderColor: "#fff",
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: "bottom",
+              },
+            },
+          },
+        });
+      }
+
+      function createConfidenceHistogram(data) {
+        const ctx = document
+          .getElementById("confidenceHistogram")
+          .getContext("2d");
+
+        if (chartInstances.confidenceHist) {
+          chartInstances.confidenceHist.destroy();
+        }
+
+        const confidenceRanges = {
+          "0.0-0.2": 0,
+          "0.2-0.4": 0,
+          "0.4-0.6": 0,
+          "0.6-0.8": 0,
+          "0.8-1.0": 0,
+        };
+
+        data.forEach((d) => {
+          const confidence = d.confidence;
+          if (confidence < 0.2) confidenceRanges["0.0-0.2"]++;
+          else if (confidence < 0.4) confidenceRanges["0.2-0.4"]++;
+          else if (confidence < 0.6) confidenceRanges["0.4-0.6"]++;
+          else if (confidence < 0.8) confidenceRanges["0.6-0.8"]++;
+          else confidenceRanges["0.8-1.0"]++;
+        });
+
+        chartInstances.confidenceHist = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: Object.keys(confidenceRanges),
+            datasets: [
+              {
+                label: "Count",
+                data: Object.values(confidenceRanges),
+                backgroundColor: "rgba(52, 152, 219, 0.7)",
+                borderColor: "#3498db",
+                borderWidth: 2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+      }
+
+      function createSourceBytesChart(data) {
+        const ctx = document
+          .getElementById("sourceBytesChart")
+          .getContext("2d");
+
+        if (chartInstances.sourceBytes) {
+          chartInstances.sourceBytes.destroy();
+        }
+
+        const sortedData = data.sort(
+          (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+        );
+
+        chartInstances.sourceBytes = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: sortedData.map((d, i) => `Log ${i + 1}`),
+            datasets: [
+              {
+                label: "Source Bytes",
+                data: sortedData.map((d) => d.input.src_bytes),
+                backgroundColor: sortedData.map((d) =>
+                  d.prediction === "Normal"
+                    ? "rgba(39, 174, 96, 0.7)"
+                    : "rgba(231, 76, 60, 0.7)"
+                ),
+                borderColor: sortedData.map((d) =>
+                  d.prediction === "Normal" ? "#27ae60" : "#e74c3c"
+                ),
+                borderWidth: 2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+              },
+            },
+          },
+        });
+      }
+
+      function createIPActivityChart(data) {
+        const ctx = document.getElementById("ipActivityChart").getContext("2d");
+
+        if (chartInstances.ipActivity) {
+          chartInstances.ipActivity.destroy();
+        }
+
+        const ipCounts = {};
+        const ipThreats = {};
+
+        data.forEach((d) => {
+          const ip = d.user_ip;
+          ipCounts[ip] = (ipCounts[ip] || 0) + 1;
+          if (d.prediction !== "Normal") {
+            ipThreats[ip] = (ipThreats[ip] || 0) + 1;
           }
-        } catch (err) {
-          console.error("Error unblocking user:", err);
-        }
+        });
+
+        chartInstances.ipActivity = new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: Object.keys(ipCounts),
+            datasets: [
+              {
+                label: "Total Activity",
+                data: Object.values(ipCounts),
+                backgroundColor: "rgba(52, 152, 219, 0.7)",
+                borderColor: "#3498db",
+                borderWidth: 2,
+              },
+              {
+                label: "Threats",
+                data: Object.keys(ipCounts).map((ip) => ipThreats[ip] || 0),
+                backgroundColor: "rgba(231, 76, 60, 0.7)",
+                borderColor: "#e74c3c",
+                borderWidth: 2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: {
+                beginAtZero: true,
+              },
+            },
+          },
+        });
       }
 
-      setInterval(fetchLogs, 3000);
-      fetchLogs();
+      function showError(message) {
+        const container = document.querySelector(".container");
+        const errorDiv = document.createElement("div");
+        errorDiv.className = "error";
+        errorDiv.textContent = message;
+        container.insertBefore(errorDiv, container.firstChild);
+
+        setTimeout(() => {
+          errorDiv.remove();
+        }, 5000);
+      }
+
+      // Load data on page load
+      window.addEventListener("load", loadData);
+
+      // Auto-refresh every 30 seconds
+      setInterval(loadData, 30000);
     </script>
   </body>
 </html>
