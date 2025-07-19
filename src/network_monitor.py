@@ -109,6 +109,8 @@ def extract_features(packet):
         "dst_host_srv_rerror_rate": 0.0
     }
 
+
+
 def packet_callback(packet):
     if packet.haslayer(IP) and packet.haslayer(TCP):
         if is_http_get_root(packet):

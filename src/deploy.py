@@ -75,6 +75,8 @@ def predict():
         prediction = model.predict(input_df)
         confidence = model.predict_proba(input_df).max(axis=1)
 
+        print(prediction)
+
         prediction_labels = [LABEL_MAP.get(p, "Unknown") for p in prediction]
 
         print(prediction_labels)
@@ -185,11 +187,6 @@ def dashboard():
 def logout():
     session.clear()
     return redirect("/login")
-
-# @app.route("/dashboard", methods=["GET"])
-# def dashboard():
-#     # Admin dashboard to view and block IPs
-#     return  send_file("dashboard.html")
 
 
 # Run the Flask app
