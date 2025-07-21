@@ -2,6 +2,8 @@ from scapy.all import sniff, IP, TCP, Raw
 import requests
 import time
 from collections import defaultdict, deque
+import json
+import re
 
 API_URL = "http://192.168.31.50:5000/predict"
 
@@ -110,24 +112,141 @@ def extract_features(packet):
     }
 
 
+# def packet_callback(packet):
+#     if packet.haslayer(IP) and packet.haslayer(TCP):
+#         if is_http_get_root(packet):
+#             features = extract_features(packet)
+#             try:
+#                 features["source_ip"] = packet[IP].src
+#                 response = requests.post(API_URL, json=features)
+#                 result = response.json()
+#                 prediction = result['prediction']
+#                 if isinstance(prediction, list) and len(prediction) == 1:
+#                     prediction = prediction[0]
+
+#                 confidence = result['confidence']
+#                 if isinstance(confidence, list) and len(confidence) == 1:
+#                     confidence = confidence[0]
+
+#                 label = prediction  # just reuse prediction variable
+
+#                 label_map = {
+#                     0: "Normal",
+#                     1: "DoS",
+#                     2: "Probe",
+#                     3: "R2L",
+#                     4: "U2R"
+#                 }
+
+#                 print(f"⚠️ Threat Detected: {prediction} | Confidence: {confidence}")
+#                 print(f"⚠️ Prediction: {label_map.get(label, 'Unknown')} ({label}) | Confidence: {confidence}")
+#             except Exception as e:
+#                 print(f"❌ Error: {e}")
+
+
+# def packet_callback(packet):
+#     if packet.haslayer(IP) and packet.haslayer(TCP):
+#         if is_http_get_root(packet):
+#             try:
+#                 # Check if packet has a Raw layer (contains payload)
+#                 if packet.haslayer(Raw):
+#                     # Get the raw payload as bytes and decode to string
+#                     payload = packet[Raw].load.decode('utf-8', errors='ignore')
+#                     try:
+#                         # Try to parse payload as JSON
+#                         features = json.loads(payload)
+#                     except json.JSONDecodeError:
+#                         # If not JSON, send as a string or handle differently
+#                         features = {"payload": payload}
+#                 else:
+#                     # No payload, create empty or minimal features
+#                     features = {}
+#                 print(features)
+#                 d = eval(str(features))
+#                 payload = d['payload']
+#                 json_part = payload.split("\r\n\r\n")[1]
+#                 features = json.loads(json_part)
+                
+#                 features["source_ip"] = packet[IP].src
+
+#                 # Send POST request to API
+#                 response = requests.post(API_URL, json=features)
+#                 result = response.json()
+#                 # Process API response
+#                 prediction = result['prediction']
+#                 if isinstance(prediction, list) and len(prediction) == 1:
+#                     prediction = prediction[0]
+
+#                 confidence = result['confidence']
+#                 if isinstance(confidence, list) and len(confidence) == 1:
+#                     confidence = confidence[0]
+
+#                 label = prediction
+
+#                 label_map = {
+#                     0: "Normal",
+#                     1: "DoS",
+#                     2: "Probe",
+#                     3: "R2L",
+#                     4: "U2R"
+#                 }
+
+#                 print(f"⚠️ Threat Detected: {prediction} | Confidence: {confidence}")
+#                 print(f"⚠️ Prediction: {label_map.get(label, 'Unknown')} ({label}) | Confidence: {confidence}")
+#             except Exception as e:
+#                 print(f"❌ Error: {e}")
+
 
 def packet_callback(packet):
     if packet.haslayer(IP) and packet.haslayer(TCP):
         if is_http_get_root(packet):
-            features = extract_features(packet)
             try:
+                # Check if packet has a Raw layer (contains payload)
+                if packet.haslayer(Raw):
+                    # Get the raw payload as bytes and decode to string
+                    payload = packet[Raw].load.decode('utf-8', errors='ignore')
+                    # Split HTTP headers and body
+                    if '\r\n\r\n' in payload:
+                        headers, body = payload.split('\r\n\r\n', 1)
+                    else:
+                        body = payload
+                    # Try to parse body as JSON
+                    try:
+                        features = json.loads(body)
+                    except json.JSONDecodeError:
+                        # If body isn't JSON, use extract_features as fallback
+                        features = extract_features(packet)
+                else:
+                    # No payload, use extract_features
+                    features = extract_features(packet)
+
+                # Add source_ip to features
                 features["source_ip"] = packet[IP].src
+
+                # Send POST request to API
                 response = requests.post(API_URL, json=features)
+                response.raise_for_status()  # Raise exception for HTTP errors
                 result = response.json()
-                prediction = result['prediction']
+
+                # Debug: Print full API response
+                print(f"API response: {result}")
+
+                # Process API response with error handling
+                prediction = result.get('prediction')
+                confidence = result.get('confidence')
+
+                if prediction is None or confidence is None:
+                    print(f"❌ Error: Invalid API response - missing 'prediction' or 'confidence': {result}")
+                    print(f"Sent payload: {features}")
+                    return
+
+                # Handle list responses
                 if isinstance(prediction, list) and len(prediction) == 1:
                     prediction = prediction[0]
-
-                confidence = result['confidence']
                 if isinstance(confidence, list) and len(confidence) == 1:
                     confidence = confidence[0]
 
-                label = prediction  # just reuse prediction variable
+                label = prediction
 
                 label_map = {
                     0: "Normal",
@@ -139,8 +258,15 @@ def packet_callback(packet):
 
                 print(f"⚠️ Threat Detected: {prediction} | Confidence: {confidence}")
                 print(f"⚠️ Prediction: {label_map.get(label, 'Unknown')} ({label}) | Confidence: {confidence}")
+            except requests.exceptions.RequestException as e:
+                print(f"❌ HTTP Error: {e}")
+                print(f"Sent payload: {features}")
+            except json.JSONDecodeError:
+                print(f"❌ Error: API response is not valid JSON: {response.text}")
+                print(f"Sent payload: {features}")
             except Exception as e:
                 print(f"❌ Error: {e}")
+                print(f"Sent payload: {features}")
 
 print("🚨 Monitoring HTTP GET / on port 5000...")
 sniff(filter="tcp port 5000", iface="\\Device\\NPF_{26EA21C1-F13C-4F6D-AC1D-E79F82D3C718}", prn=packet_callback, store=0)

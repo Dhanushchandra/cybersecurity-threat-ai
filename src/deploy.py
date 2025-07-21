@@ -144,7 +144,7 @@ def unblock_user(ip):
 def get_blocked_ips():
     return jsonify(list(BLOCKED_IPS))
 
-@app.route("/", methods=["GET"])
+@app.route("/", methods=["GET", "POST"])
 def home():
     user_ip = request.remote_addr
     if user_ip in BLOCKED_IPS:
