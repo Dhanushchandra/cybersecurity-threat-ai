@@ -200,6 +200,78 @@
         animation: alertBlink 2s infinite;
       }
 
+      .floating-action-btn {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 60px;
+        height: 60px;
+        background: red;
+        border: none;
+        border-radius: 50%;
+        color: white;
+        font-size: 0.75rem;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 8px 25px rgba(238, 90, 82, 0.3);
+        transition: all 0.3s ease;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        text-align: center;
+        line-height: 1;
+        animation: float 3s ease-in-out infinite;
+      }
+
+      .floating-action-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 12px 35px red;
+        color: white;
+        text-decoration: none;
+      }
+
+      .floating-action-btn:active {
+        transform: scale(0.95);
+      }
+
+      .floating-action-btn:visited {
+        color: white;
+        text-decoration: none;
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+
+      @media (max-width: 768px) {
+        .floating-action-btn {
+          width: 50px;
+          height: 50px;
+          font-size: 0.65rem;
+          bottom: 20px;
+          right: 20px;
+        }
+      }
+
+      /* Responsive Design for the button */
+      @media (max-width: 768px) {
+        .floating-action-btn {
+          width: 50px;
+          height: 50px;
+          font-size: 0.8rem;
+          bottom: 20px;
+          right: 20px;
+        }
+      }
+
       @keyframes alertBlink {
         0%,
         100% {
@@ -216,6 +288,14 @@
       <h1>🛡️ Network Intrusion Detection Dashboard</h1>
       <p>Real-time Security Monitoring & Analysis</p>
     </div>
+
+    <a
+      href="/dashboard"
+      class="floating-action-btn"
+      title="Take Action - Go to Admin Dashboard"
+    >
+      Take Action <br />
+    </a>
 
     <div class="status-bar">
       <div class="status-item">
@@ -391,6 +471,61 @@
         }
       }
 
+      // function createTimelineChart(data) {
+      //   const ctx = document.getElementById("timelineChart").getContext("2d");
+
+      //   if (chartInstances.timeline) {
+      //     chartInstances.timeline.destroy();
+      //   }
+
+      //   const sortedData = data.sort(
+      //     (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
+      //   );
+
+      //   chartInstances.timeline = new Chart(ctx, {
+      //     type: "line",
+      //     data: {
+      //       labels: sortedData.map((d) =>
+      //         new Date(d.timestamp).toLocaleTimeString()
+      //       ),
+      //       datasets: [
+      //         {
+      //           label: "Predictions",
+      //           data: sortedData.map((d) =>
+      //             d.prediction === "Normal" ? 0 : 1
+      //           ),
+      //           borderColor: "#e74c3c",
+      //           backgroundColor: "rgba(231, 76, 60, 0.1)",
+      //           borderWidth: 3,
+      //           fill: true,
+      //           tension: 0.4,
+      //         },
+      //       ],
+      //     },
+      //     options: {
+      //       responsive: true,
+      //       maintainAspectRatio: false,
+      //       scales: {
+      //         y: {
+      //           beginAtZero: true,
+      //           max: 1,
+      //           ticks: {
+      //             callback: function (value) {
+      //               return value === 0 ? "Normal" : "Threat";
+      //             },
+      //           },
+      //         },
+      //       },
+      //       plugins: {
+      //         legend: {
+      //           display: true,
+      //           position: "top",
+      //         },
+      //       },
+      //     },
+      //   });
+      // }
+
       function createTimelineChart(data) {
         const ctx = document.getElementById("timelineChart").getContext("2d");
 
@@ -402,23 +537,67 @@
           (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
         );
 
+        // Unique IPs and color palette
+        const uniqueIps = [...new Set(sortedData.map((d) => d.user_ip))];
+        const colors = [
+          "#3498db",
+          "#e74c3c",
+          "#2ecc71",
+          "#f1c40f",
+          "#9b59b6",
+          "#1abc9c",
+          "#e67e22",
+          "#7f8c8d",
+          "#34495e",
+          "#d35400",
+        ];
+
+        // Map IPs to colors
+        const ipColorMap = uniqueIps.reduce((acc, ip, i) => {
+          acc[ip] = colors[i % colors.length];
+          return acc;
+        }, {});
+
         chartInstances.timeline = new Chart(ctx, {
           type: "line",
           data: {
             labels: sortedData.map((d) =>
-              new Date(d.timestamp).toLocaleTimeString()
+              new Date(d.timestamp).toLocaleString("en-US", {
+                hour: "numeric",
+                minute: "numeric",
+                second: "numeric",
+                hour12: true,
+              })
             ),
             datasets: [
               {
-                label: "Predictions",
+                label: "Threat Level",
                 data: sortedData.map((d) =>
-                  d.prediction === "Normal" ? 0 : 1
+                  d.prediction === "Normal" ? 0 : d.confidence
                 ),
-                borderColor: "#e74c3c",
-                backgroundColor: "rgba(231, 76, 60, 0.1)",
-                borderWidth: 3,
+                borderColor: sortedData.map((d) => ipColorMap[d.user_ip]),
+                backgroundColor: sortedData.map(
+                  (d) => `${ipColorMap[d.user_ip]}33`
+                ), // 20% opacity
+                borderWidth: 2,
                 fill: true,
-                tension: 0.4,
+                tension: 0.3,
+                pointRadius: 5,
+                pointHoverRadius: 8,
+              },
+              {
+                label: "Source Bytes",
+                data: sortedData.map((d) => d.input.src_bytes),
+                borderColor: sortedData.map((d) => ipColorMap[d.user_ip]),
+                backgroundColor: sortedData.map(
+                  (d) => `${ipColorMap[d.user_ip]}33`
+                ), // 20% opacity
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3,
+                yAxisID: "y1",
+                pointRadius: 5,
+                pointHoverRadius: 8,
               },
             ],
           },
@@ -429,10 +608,34 @@
               y: {
                 beginAtZero: true,
                 max: 1,
+                position: "left",
+                title: {
+                  display: true,
+                  text: "Threat Confidence",
+                },
                 ticks: {
                   callback: function (value) {
-                    return value === 0 ? "Normal" : "Threat";
+                    return value === 0
+                      ? "Normal"
+                      : `${(value * 100).toFixed(0)}%`;
                   },
+                },
+              },
+              y1: {
+                position: "right",
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: "Source Bytes",
+                },
+                grid: {
+                  drawOnChartArea: false,
+                },
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: "Timestamp",
                 },
               },
             },
@@ -440,6 +643,39 @@
               legend: {
                 display: true,
                 position: "top",
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    const index = context.dataIndex;
+                    const dataPoint = sortedData[index];
+                    return [
+                      `IP: ${dataPoint.user_ip}`,
+                      `Prediction: ${dataPoint.prediction}`,
+                      `Confidence: ${(dataPoint.confidence * 100).toFixed(1)}%`,
+                      `Source Bytes: ${dataPoint.input.src_bytes}`,
+                    ];
+                  },
+                },
+              },
+              annotation: {
+                annotations: sortedData.reduce((acc, d, i) => {
+                  if (d.prediction !== "Normal") {
+                    acc[`threat${i}`] = {
+                      type: "line",
+                      xMin: i,
+                      xMax: i,
+                      borderColor: ipColorMap[d.user_ip],
+                      borderWidth: 2,
+                      label: {
+                        content: d.prediction,
+                        enabled: true,
+                        position: "top",
+                      },
+                    };
+                  }
+                  return acc;
+                }, {}),
               },
             },
           },
@@ -591,22 +827,48 @@
           .getElementById("sourceBytesChart")
           .getContext("2d");
 
+        console.log(data);
+
         if (chartInstances.sourceBytes) {
           chartInstances.sourceBytes.destroy();
         }
 
-        const sortedData = data.sort(
-          (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
-        );
+        // Aggregate data by user_ip
+        const aggregatedData = data.reduce((acc, curr) => {
+          const ip = curr.user_ip;
+          if (!acc[ip]) {
+            acc[ip] = {
+              src_bytes: 0,
+              prediction: curr.prediction,
+              count: 0,
+            };
+          }
+          acc[ip].src_bytes += curr.input.src_bytes;
+          acc[ip].count += 1;
+          // If any entry for this IP is not Normal, mark it as anomalous
+          if (curr.prediction !== "Normal") {
+            acc[ip].prediction = curr.prediction;
+          }
+          return acc;
+        }, {});
+
+        // Convert aggregated data to arrays for Chart.js
+        const sortedData = Object.entries(aggregatedData)
+          .map(([ip, info]) => ({
+            user_ip: ip,
+            src_bytes: info.src_bytes,
+            prediction: info.prediction,
+          }))
+          .sort((a, b) => b.src_bytes - a.src_bytes); // Sort by src_bytes descending
 
         chartInstances.sourceBytes = new Chart(ctx, {
           type: "bar",
           data: {
-            labels: sortedData.map((d, i) => `Log ${i + 1}`),
+            labels: sortedData.map((d) => d.user_ip),
             datasets: [
               {
-                label: "Source Bytes",
-                data: sortedData.map((d) => d.input.src_bytes),
+                label: "Source Bytes by IP",
+                data: sortedData.map((d) => d.src_bytes),
                 backgroundColor: sortedData.map((d) =>
                   d.prediction === "Normal"
                     ? "rgba(39, 174, 96, 0.7)"
@@ -625,6 +887,28 @@
             scales: {
               y: {
                 beginAtZero: true,
+                title: {
+                  display: true,
+                  text: "Total Source Bytes",
+                },
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: "User IP",
+                },
+              },
+            },
+            plugins: {
+              legend: {
+                display: true,
+              },
+              tooltip: {
+                callbacks: {
+                  label: function (context) {
+                    return `Source Bytes: ${context.parsed.y}`;
+                  },
+                },
               },
             },
           },

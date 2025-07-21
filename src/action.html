@@ -321,6 +321,78 @@
         margin: 0 auto 20px;
       }
 
+      .floating-action-btn {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 60px;
+        height: 60px;
+        background: red;
+        border: none;
+        border-radius: 50%;
+        color: white;
+        font-size: 0.75rem;
+        font-weight: bold;
+        cursor: pointer;
+        box-shadow: 0 8px 25px rgba(238, 90, 82, 0.3);
+        transition: all 0.3s ease;
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        text-align: center;
+        line-height: 1;
+        animation: float 3s ease-in-out infinite;
+      }
+
+      .floating-action-btn:hover {
+        transform: scale(1.1);
+        box-shadow: 0 12px 35px red;
+        color: white;
+        text-decoration: none;
+      }
+
+      .floating-action-btn:active {
+        transform: scale(0.95);
+      }
+
+      .floating-action-btn:visited {
+        color: white;
+        text-decoration: none;
+      }
+
+      @keyframes float {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-10px);
+        }
+      }
+
+      @media (max-width: 768px) {
+        .floating-action-btn {
+          width: 50px;
+          height: 50px;
+          font-size: 0.65rem;
+          bottom: 20px;
+          right: 20px;
+        }
+      }
+
+      /* Responsive Design for the button */
+      @media (max-width: 768px) {
+        .floating-action-btn {
+          width: 50px;
+          height: 50px;
+          font-size: 0.8rem;
+          bottom: 20px;
+          right: 20px;
+        }
+      }
+
       @keyframes spin {
         0% {
           transform: rotate(0deg);
@@ -373,6 +445,14 @@
         </h1>
         <p>Real-time security monitoring and threat analysis</p>
       </div>
+
+      <a
+        href="/monitor"
+        class="floating-action-btn"
+        title="Take Action - Go to Admin Dashboard"
+      >
+        Monitor <br />
+      </a>
 
       <div class="stats-grid">
         <div class="stat-card">
